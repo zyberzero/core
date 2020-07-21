@@ -89,27 +89,6 @@ _LOGGER = logging.getLogger(__name__)
 
 AutomationActionType = Callable[[HomeAssistant, TemplateVarsType], Awaitable[None]]
 
-
-def _platform_validator(config):
-    """Validate it is a valid platform."""
-    try:
-        platform = importlib.import_module(f".{config[CONF_PLATFORM]}", __name__)
-    except ImportError:
-        raise vol.Invalid("Invalid platform specified") from None
-
-    return platform.TRIGGER_SCHEMA(config)
-
-
-_TRIGGER_SCHEMA = vol.All(
-    cv.ensure_list,
-    [
-        vol.All(
-            vol.Schema({vol.Required(CONF_PLATFORM): str}, extra=vol.ALLOW_EXTRA),
-            _platform_validator,
-        )
-    ],
-)
-
 _CONDITION_SCHEMA = vol.All(cv.ensure_list, [cv.CONDITION_SCHEMA])
 
 PLATFORM_SCHEMA = vol.All(
@@ -122,7 +101,7 @@ PLATFORM_SCHEMA = vol.All(
             vol.Optional(CONF_DESCRIPTION): cv.string,
             vol.Optional(CONF_INITIAL_STATE): cv.boolean,
             vol.Optional(CONF_HIDE_ENTITY): cv.boolean,
-            vol.Required(CONF_TRIGGER): _TRIGGER_SCHEMA,
+            vol.Required(CONF_TRIGGER): cv.TRIGGER_SCHEMA,
             vol.Optional(CONF_CONDITION): _CONDITION_SCHEMA,
             vol.Required(CONF_ACTION): cv.SCRIPT_SCHEMA,
         },

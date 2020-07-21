@@ -6,6 +6,7 @@ from datetime import (
     timedelta,
 )
 from enum import Enum
+import importlib
 import inspect
 import logging
 from numbers import Number
@@ -66,6 +67,7 @@ from homeassistant.const import (
     CONF_UNIT_SYSTEM_METRIC,
     CONF_UNTIL,
     CONF_VALUE_TEMPLATE,
+    CONF_WAIT_FOR_TRIGGER,
     CONF_WAIT_TEMPLATE,
     CONF_WHILE,
     ENTITY_MATCH_ALL,
@@ -830,6 +832,29 @@ def make_entity_service_schema(
     )
 
 
+def _platform_validator(config):  # type: ignore
+    """Validate it is a valid platform."""
+    try:
+        platform = importlib.import_module(
+            f".{config[CONF_PLATFORM]}", "homeassistant.components.automation"
+        )
+    except ImportError:
+        raise vol.Invalid("Invalid platform specified") from None
+
+    return platform.TRIGGER_SCHEMA(config)  # type: ignore
+
+
+TRIGGER_SCHEMA = vol.All(
+    ensure_list,
+    [
+        vol.All(
+            vol.Schema({vol.Required(CONF_PLATFORM): str}, extra=vol.ALLOW_EXTRA),
+            _platform_validator,
+        )
+    ],
+)
+
+
 def script_action(value: Any) -> dict:
     """Validate a script action."""
     if not isinstance(value, dict):
@@ -1056,6 +1081,15 @@ _SCRIPT_CHOOSE_SCHEMA = vol.Schema(
     }
 )
 
+_SCRIPT_WAIT_FOR_TRIGGER_SCHEMA = vol.Schema(
+    {
+        vol.Optional(CONF_ALIAS): string,
+        vol.Required(CONF_WAIT_FOR_TRIGGER): TRIGGER_SCHEMA,
+        vol.Optional(CONF_TIMEOUT): positive_time_period_template,
+        vol.Optional(CONF_CONTINUE_ON_TIMEOUT): boolean,
+    }
+)
+
 SCRIPT_ACTION_DELAY = "delay"
 SCRIPT_ACTION_WAIT_TEMPLATE = "wait_template"
 SCRIPT_ACTION_CHECK_CONDITION = "condition"
@@ -1065,6 +1099,7 @@ SCRIPT_ACTION_DEVICE_AUTOMATION = "device"
 SCRIPT_ACTION_ACTIVATE_SCENE = "scene"
 SCRIPT_ACTION_REPEAT = "repeat"
 SCRIPT_ACTION_CHOOSE = "choose"
+SCRIPT_ACTION_WAIT_FOR_TRIGGER = "wait_for_trigger"
 
 
 def determine_script_action(action: dict) -> str:
@@ -1093,6 +1128,9 @@ def determine_script_action(action: dict) -> str:
     if CONF_CHOOSE in action:
         return SCRIPT_ACTION_CHOOSE
 
+    if CONF_WAIT_FOR_TRIGGER in action:
+        return SCRIPT_ACTION_WAIT_FOR_TRIGGER
+
     return SCRIPT_ACTION_CALL_SERVICE
 
 
@@ -1106,4 +1144,5 @@ ACTION_TYPE_SCHEMAS: Dict[str, Callable[[Any], dict]] = {
     SCRIPT_ACTION_ACTIVATE_SCENE: _SCRIPT_SCENE_SCHEMA,
     SCRIPT_ACTION_REPEAT: _SCRIPT_REPEAT_SCHEMA,
     SCRIPT_ACTION_CHOOSE: _SCRIPT_CHOOSE_SCHEMA,
+    SCRIPT_ACTION_WAIT_FOR_TRIGGER: _SCRIPT_WAIT_FOR_TRIGGER_SCHEMA,
 }
