@@ -832,7 +832,7 @@ def make_entity_service_schema(
     )
 
 
-def _platform_validator(config):  # type: ignore
+def _automation_platform_validator(config):  # type: ignore
     """Validate it is a valid platform."""
     try:
         platform = importlib.import_module(
@@ -849,7 +849,7 @@ TRIGGER_SCHEMA = vol.All(
     [
         vol.All(
             vol.Schema({vol.Required(CONF_PLATFORM): str}, extra=vol.ALLOW_EXTRA),
-            _platform_validator,
+            _automation_platform_validator,
         )
     ],
 )
